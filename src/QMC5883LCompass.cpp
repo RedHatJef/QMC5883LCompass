@@ -147,16 +147,27 @@ void QMC5883LCompass::setSmoothing(byte steps, bool adv){
 	_smoothAdvanced = (adv == true) ? true : false;
 }
 
-void QMC5883LCompass::calibrate() {
+void QMC5883LCompass::calibrate(unsigned int seconds, CalibrationProcessCB& callback) {
 	clearCalibration();
 	long calibrationData[3][2] = {{65000, -65000}, {65000, -65000}, {65000, -65000}};
   	long	x = calibrationData[0][0] = calibrationData[0][1] = getX();
   	long	y = calibrationData[1][0] = calibrationData[1][1] = getY();
   	long	z = calibrationData[2][0] = calibrationData[2][1] = getZ();
 
+    if(seconds == 0) seconds = 10000;
+
+    unsigned long totalMillis = seconds * 1000;
 	unsigned long startTime = millis();
 
-	while((millis() - startTime) < 10000) {
+    do {
+        unsigned long currentTime = millis();
+        unsigned long elapsedMillis = currentTime - startTime;
+        if(elapsedMillis > totalMillis) elapsedMillis = totalMillis;
+        float progress = (elapsedMillis * 1.0) / totalMillis;
+        if(progress < 0) progress = 0;
+        else if(progress > 1) progress = 1;
+        callback(progress);
+
 		read();
 
   		x = getX();
@@ -183,7 +194,8 @@ void QMC5883LCompass::calibrate() {
 		if(z > calibrationData[2][1]) {
 			calibrationData[2][1] = z;
 		}
-	}
+
+    } while(elapsedMillis < totalMillis)
 
 	setCalibration(
 		calibrationData[0][0],
