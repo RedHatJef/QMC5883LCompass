@@ -67,9 +67,9 @@ QMC5883LCompass::QMC5883LCompass() {
 	@since v0.1;
 **/
 void QMC5883LCompass::init(){
-	Wire.begin();
-	_writeReg(0x0B,0x01);
-	setMode(0x01,0x0C,0x10,0X00);
+    Wire.begin();
+    _writeReg(0x0B,0x01);
+    setMode(0x01,0x0C,0x10,0X00);
 }
 
 
@@ -81,7 +81,7 @@ void QMC5883LCompass::init(){
 **/
 // Set I2C Address if different then default.
 void QMC5883LCompass::setADDR(byte b){
-	_ADDR = b;
+    _ADDR = b;
 }
 
 
@@ -95,10 +95,10 @@ void QMC5883LCompass::setADDR(byte b){
 **/
 // Write register values to chip
 void QMC5883LCompass::_writeReg(byte r, byte v){
-	Wire.beginTransmission(_ADDR);
-	Wire.write(r);
-	Wire.write(v);
-	Wire.endTransmission();
+    Wire.beginTransmission(_ADDR);
+    Wire.write(r);
+    Wire.write(v);
+    Wire.endTransmission();
 }
 
 
@@ -110,7 +110,7 @@ void QMC5883LCompass::_writeReg(byte r, byte v){
 **/
 // Set chip mode
 void QMC5883LCompass::setMode(byte mode, byte odr, byte rng, byte osr){
-	_writeReg(0x09,mode|odr|rng|osr);
+    _writeReg(0x09,mode|odr|rng|osr);
 }
 
 
@@ -125,7 +125,7 @@ void QMC5883LCompass::setMode(byte mode, byte odr, byte rng, byte osr){
  * then: setMagneticDeclination(-19, 43);
  */
 void QMC5883LCompass::setMagneticDeclination(int degrees, uint8_t minutes) {
-	_magneticDeclinationDegrees = degrees + minutes / 60;
+    _magneticDeclinationDegrees = degrees + minutes / 60;
 }
 
 
@@ -137,74 +137,75 @@ void QMC5883LCompass::setMagneticDeclination(int degrees, uint8_t minutes) {
 **/
 // Reset the chip
 void QMC5883LCompass::setReset(){
-	_writeReg(0x0A,0x80);
+    _writeReg(0x0A,0x80);
 }
 
 // 1 = Basic 2 = Advanced
 void QMC5883LCompass::setSmoothing(byte steps, bool adv){
-	_smoothUse = true;
-	_smoothSteps = ( steps > 10) ? 10 : steps;
-	_smoothAdvanced = (adv == true) ? true : false;
+    _smoothUse = true;
+    _smoothSteps = ( steps > 10) ? 10 : steps;
+    _smoothAdvanced = (adv == true) ? true : false;
 }
 
-void QMC5883LCompass::calibrate(unsigned int seconds, CalibrationProcessCB& callback) {
-	clearCalibration();
-	long calibrationData[3][2] = {{65000, -65000}, {65000, -65000}, {65000, -65000}};
-  	long	x = calibrationData[0][0] = calibrationData[0][1] = getX();
-  	long	y = calibrationData[1][0] = calibrationData[1][1] = getY();
-  	long	z = calibrationData[2][0] = calibrationData[2][1] = getZ();
+void QMC5883LCompass::calibrate(unsigned int seconds, void (*callback)(float)) {
+    clearCalibration();
+    long calibrationData[3][2] = {{65000, -65000}, {65000, -65000}, {65000, -65000}};
+    long	x = calibrationData[0][0] = calibrationData[0][1] = getX();
+    long	y = calibrationData[1][0] = calibrationData[1][1] = getY();
+    long	z = calibrationData[2][0] = calibrationData[2][1] = getZ();
 
     if(seconds == 0) seconds = 10000;
 
     unsigned long totalMillis = seconds * 1000;
-	unsigned long startTime = millis();
+    unsigned long startTime = millis();
+    unsigned long elapsedMillis;
 
     do {
         unsigned long currentTime = millis();
-        unsigned long elapsedMillis = currentTime - startTime;
+        elapsedMillis = currentTime - startTime;
         if(elapsedMillis > totalMillis) elapsedMillis = totalMillis;
         float progress = (elapsedMillis * 1.0) / totalMillis;
         if(progress < 0) progress = 0;
         else if(progress > 1) progress = 1;
         callback(progress);
 
-		read();
+        read();
 
-  		x = getX();
-  		y = getY();
-  		z = getZ();
+        x = getX();
+        y = getY();
+        z = getZ();
 
-		if(x < calibrationData[0][0]) {
-			calibrationData[0][0] = x;
-		}
-		if(x > calibrationData[0][1]) {
-			calibrationData[0][1] = x;
-		}
+        if(x < calibrationData[0][0]) {
+            calibrationData[0][0] = x;
+        }
+        if(x > calibrationData[0][1]) {
+            calibrationData[0][1] = x;
+        }
 
-		if(y < calibrationData[1][0]) {
-			calibrationData[1][0] = y;
-		}
-		if(y > calibrationData[1][1]) {
-			calibrationData[1][1] = y;
-		}
+        if(y < calibrationData[1][0]) {
+            calibrationData[1][0] = y;
+        }
+        if(y > calibrationData[1][1]) {
+            calibrationData[1][1] = y;
+        }
 
-		if(z < calibrationData[2][0]) {
-			calibrationData[2][0] = z;
-		}
-		if(z > calibrationData[2][1]) {
-			calibrationData[2][1] = z;
-		}
+        if(z < calibrationData[2][0]) {
+            calibrationData[2][0] = z;
+        }
+        if(z > calibrationData[2][1]) {
+            calibrationData[2][1] = z;
+        }
 
-    } while(elapsedMillis < totalMillis)
+    } while(elapsedMillis < totalMillis);
 
-	setCalibration(
-		calibrationData[0][0],
-		calibrationData[0][1],
-		calibrationData[1][0],
-		calibrationData[1][1],
-		calibrationData[2][0],
-		calibrationData[2][1]
-	);
+    setCalibration(
+            calibrationData[0][0],
+            calibrationData[0][1],
+            calibrationData[1][0],
+            calibrationData[1][1],
+            calibrationData[2][0],
+            calibrationData[2][1]
+    );
 }
 
 /**
@@ -218,48 +219,48 @@ void QMC5883LCompass::calibrate(unsigned int seconds, CalibrationProcessCB& call
 	@deprecated Instead of setCalibration, use the calibration offset and scale methods.
 **/
 void QMC5883LCompass::setCalibration(int x_min, int x_max, int y_min, int y_max, int z_min, int z_max){
-	setCalibrationOffsets(
-		(x_min + x_max)/2,
-		(y_min + y_max)/2,
-		(z_min + z_max)/2
-	);
+    setCalibrationOffsets(
+            (x_min + x_max)/2,
+            (y_min + y_max)/2,
+            (z_min + z_max)/2
+    );
 
-	float x_avg_delta = (x_max - x_min)/2;
-	float y_avg_delta = (y_max - y_min)/2;
-	float z_avg_delta = (z_max - z_min)/2;
+    float x_avg_delta = (x_max - x_min)/2;
+    float y_avg_delta = (y_max - y_min)/2;
+    float z_avg_delta = (z_max - z_min)/2;
 
-	float avg_delta = (x_avg_delta + y_avg_delta + z_avg_delta) / 3;
+    float avg_delta = (x_avg_delta + y_avg_delta + z_avg_delta) / 3;
 
-	setCalibrationScales(
-		avg_delta / x_avg_delta,
-		avg_delta / y_avg_delta,
-		avg_delta / z_avg_delta
-	);
+    setCalibrationScales(
+            avg_delta / x_avg_delta,
+            avg_delta / y_avg_delta,
+            avg_delta / z_avg_delta
+    );
 }
 
 void QMC5883LCompass::setCalibrationOffsets(float x_offset, float y_offset, float z_offset) {
-	_offset[0] = x_offset;
-	_offset[1] = y_offset;
-	_offset[2] = z_offset;
+    _offset[0] = x_offset;
+    _offset[1] = y_offset;
+    _offset[2] = z_offset;
 }
 
 void QMC5883LCompass::setCalibrationScales(float x_scale, float y_scale, float z_scale) {
-	_scale[0] = x_scale;
-	_scale[1] = y_scale;
-	_scale[2] = z_scale;
+    _scale[0] = x_scale;
+    _scale[1] = y_scale;
+    _scale[2] = z_scale;
 }
 
 float QMC5883LCompass::getCalibrationOffset(uint8_t index) {
-	return _offset[index];
+    return _offset[index];
 }
 
 float QMC5883LCompass::getCalibrationScale(uint8_t index) {
-	return _scale[index];
+    return _scale[index];
 }
 
 void QMC5883LCompass::clearCalibration(){
-	setCalibrationOffsets(0., 0., 0.);
-	setCalibrationScales(1., 1., 1.);
+    setCalibrationOffsets(0., 0., 0.);
+    setCalibrationScales(1., 1., 1.);
 }
 
 /**
@@ -269,24 +270,24 @@ void QMC5883LCompass::clearCalibration(){
 	@since v0.1;
 **/
 void QMC5883LCompass::read(){
-	Wire.beginTransmission(_ADDR);
-	Wire.write(0x00);
-	int err = Wire.endTransmission();
-	if (!err) {
-		Wire.requestFrom(_ADDR, (byte)6);
-		_vRaw[0] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
-		_vRaw[1] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
-		_vRaw[2] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
+    Wire.beginTransmission(_ADDR);
+    Wire.write(0x00);
+    int err = Wire.endTransmission();
+    if (!err) {
+        Wire.requestFrom(_ADDR, (byte)6);
+        _vRaw[0] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
+        _vRaw[1] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
+        _vRaw[2] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
 
-		_applyCalibration();
-		
-		if ( _smoothUse ) {
-			_smoothing();
-		}
-		
-		//byte overflow = Wire.read() & 0x02;
-		//return overflow << 2;
-	}
+        _applyCalibration();
+
+        if ( _smoothUse ) {
+            _smoothing();
+        }
+
+        //byte overflow = Wire.read() & 0x02;
+        //return overflow << 2;
+    }
 }
 
 /**
@@ -303,9 +304,9 @@ void QMC5883LCompass::read(){
 	
 **/
 void QMC5883LCompass::_applyCalibration(){
-	_vCalibrated[0] = (_vRaw[0] - _offset[0]) * _scale[0];
-	_vCalibrated[1] = (_vRaw[1] - _offset[1]) * _scale[1];
-	_vCalibrated[2] = (_vRaw[2] - _offset[2]) * _scale[2];
+    _vCalibrated[0] = (_vRaw[0] - _offset[0]) * _scale[0];
+    _vCalibrated[1] = (_vRaw[1] - _offset[1]) * _scale[1];
+    _vCalibrated[2] = (_vRaw[2] - _offset[2]) * _scale[2];
 }
 
 
@@ -328,36 +329,36 @@ void QMC5883LCompass::_applyCalibration(){
 	@since v0.3;
 **/
 void QMC5883LCompass::_smoothing(){
-	byte max = 0;
-	byte min = 0;
-	
-	if ( _vScan > _smoothSteps - 1 ) { _vScan = 0; }
-	
-	for ( int i = 0; i < 3; i++ ) {
-		if ( _vTotals[i] != 0 ) {
-			_vTotals[i] = _vTotals[i] - _vHistory[_vScan][i];
-		}
-		_vHistory[_vScan][i] = _vCalibrated[i];
-		_vTotals[i] = _vTotals[i] + _vHistory[_vScan][i];
-		
-		if ( _smoothAdvanced ) {
-			max = 0;
-			for (int j = 0; j < _smoothSteps - 1; j++) {
-				max = ( _vHistory[j][i] > _vHistory[max][i] ) ? j : max;
-			}
-			
-			min = 0;
-			for (int k = 0; k < _smoothSteps - 1; k++) {
-				min = ( _vHistory[k][i] < _vHistory[min][i] ) ? k : min;
-			}
-					
-			_vSmooth[i] = ( _vTotals[i] - (_vHistory[max][i] + _vHistory[min][i]) ) / (_smoothSteps - 2);
-		} else {
-			_vSmooth[i] = _vTotals[i]  / _smoothSteps;
-		}
-	}
-	
-	_vScan++;
+    byte max = 0;
+    byte min = 0;
+
+    if ( _vScan > _smoothSteps - 1 ) { _vScan = 0; }
+
+    for ( int i = 0; i < 3; i++ ) {
+        if ( _vTotals[i] != 0 ) {
+            _vTotals[i] = _vTotals[i] - _vHistory[_vScan][i];
+        }
+        _vHistory[_vScan][i] = _vCalibrated[i];
+        _vTotals[i] = _vTotals[i] + _vHistory[_vScan][i];
+
+        if ( _smoothAdvanced ) {
+            max = 0;
+            for (int j = 0; j < _smoothSteps - 1; j++) {
+                max = ( _vHistory[j][i] > _vHistory[max][i] ) ? j : max;
+            }
+
+            min = 0;
+            for (int k = 0; k < _smoothSteps - 1; k++) {
+                min = ( _vHistory[k][i] < _vHistory[min][i] ) ? k : min;
+            }
+
+            _vSmooth[i] = ( _vTotals[i] - (_vHistory[max][i] + _vHistory[min][i]) ) / (_smoothSteps - 2);
+        } else {
+            _vSmooth[i] = _vTotals[i]  / _smoothSteps;
+        }
+    }
+
+    _vScan++;
 }
 
 
@@ -369,7 +370,7 @@ void QMC5883LCompass::_smoothing(){
 	@return int x axis
 **/
 int QMC5883LCompass::getX(){
-	return _get(0);
+    return _get(0);
 }
 
 
@@ -381,7 +382,7 @@ int QMC5883LCompass::getX(){
 	@return int y axis
 **/
 int QMC5883LCompass::getY(){
-	return _get(1);
+    return _get(1);
 }
 
 
@@ -393,7 +394,7 @@ int QMC5883LCompass::getY(){
 	@return int z axis
 **/
 int QMC5883LCompass::getZ(){
-	return _get(2);
+    return _get(2);
 }
 
 /**
@@ -404,10 +405,10 @@ int QMC5883LCompass::getZ(){
 	@return int sensor axis value
 **/
 int QMC5883LCompass::_get(int i){
-	if ( _smoothUse ) 
-		return _vSmooth[i];
-	
-	return _vCalibrated[i];
+    if ( _smoothUse )
+        return _vSmooth[i];
+
+    return _vCalibrated[i];
 }
 
 
@@ -421,9 +422,9 @@ int QMC5883LCompass::_get(int i){
 	@return int azimuth
 **/
 int QMC5883LCompass::getAzimuth(){
-	float heading = atan2( getY(), getX() ) * 180.0 / PI;
-	heading += _magneticDeclinationDegrees;
-	return (int)heading % 360;
+    float heading = atan2( getY(), getX() ) * 180.0 / PI;
+    heading += _magneticDeclinationDegrees;
+    return (int)heading % 360;
 }
 
 
@@ -440,11 +441,11 @@ int QMC5883LCompass::getAzimuth(){
 	@return byte direction of bearing
 */
 byte QMC5883LCompass::getBearing(int azimuth){
-	unsigned long a = ( azimuth > -0.5 ) ? azimuth / 22.5 : (azimuth+360)/22.5;
-	unsigned long r = a - (int)a;
-	byte sexdec = 0;	
-	sexdec = ( r >= .5 ) ? ceil(a) : floor(a);
-	return sexdec;
+    unsigned long a = ( azimuth > -0.5 ) ? azimuth / 22.5 : (azimuth+360)/22.5;
+    unsigned long r = a - (int)a;
+    byte sexdec = 0;
+    sexdec = ( r >= .5 ) ? ceil(a) : floor(a);
+    return sexdec;
 }
 
 
@@ -473,8 +474,8 @@ byte QMC5883LCompass::getBearing(int azimuth){
 	@since v0.2.0 - initial creation
 */
 void QMC5883LCompass::getDirection(char* myArray, int azimuth){
-	int d = getBearing(azimuth);
-	myArray[0] = _bearings[d][0];
-	myArray[1] = _bearings[d][1];
-	myArray[2] = _bearings[d][2];
+    int d = getBearing(azimuth);
+    myArray[0] = _bearings[d][0];
+    myArray[1] = _bearings[d][1];
+    myArray[2] = _bearings[d][2];
 }
