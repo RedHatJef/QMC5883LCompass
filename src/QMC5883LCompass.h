@@ -71,12 +71,12 @@ private:
     };
     TwoWire *wire;
 
-    long minX = 65000;
-    long minY = 65000;
-    long minZ = 65000;
-    long maxX = -65000;
-    long maxY = -65000;
-    long maxZ = -65000;
+    int minX = (int)65000;
+    int minY = (int)65000;
+    int minZ = (int)65000;
+    int maxX = (int)-65000;
+    int maxY = (int)-65000;
+    int maxZ = (int)-65000;
 };
 
 #endif

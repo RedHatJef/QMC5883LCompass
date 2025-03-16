@@ -139,7 +139,7 @@ void QMC5883LCompass::setMode(byte mode, byte odr, byte rng, byte osr){
  * then: setMagneticDeclination(-19, 43);
  */
 void QMC5883LCompass::setMagneticDeclination(int degrees, uint8_t minutes) {
-    _magneticDeclinationDegrees = degrees + minutes / 60;
+    _magneticDeclinationDegrees = (float)degrees + (float)minutes / 60;
 }
 
 
@@ -183,7 +183,7 @@ void QMC5883LCompass::calibrate(unsigned int seconds, void (*callback)(float, bo
         unsigned long currentTime = millis();
         elapsedMillis = currentTime - startTime;
         if(elapsedMillis > totalMillis) elapsedMillis = totalMillis;
-        float progress = (elapsedMillis * 1.0) / totalMillis;
+        float progress = (float)elapsedMillis / (float)totalMillis;
         if(progress < 0) progress = 0;
         else if(progress > 1) progress = 1;
 
@@ -276,15 +276,22 @@ bool QMC5883LCompass::_applyCalibrationIfNecessary(int x, int y, int z) {
 	@deprecated Instead of setCalibration, use the calibration offset and scale methods.
 **/
 void QMC5883LCompass::setCalibration(int x_min, int x_max, int y_min, int y_max, int z_min, int z_max){
+    float x_min_f = x_min;
+    float x_max_f = x_max;
+    float y_min_f = y_min;
+    float y_max_f = y_max;
+    float z_min_f = z_min;
+    float z_max_f = z_max;
+
     setCalibrationOffsets(
-            (x_min + x_max)/2,
-            (y_min + y_max)/2,
-            (z_min + z_max)/2
+            (x_min_f + x_max_f)/2,
+            (y_min_f + y_max_f)/2,
+            (z_min_f * z_max_f)/2
     );
 
-    float x_avg_delta = (x_max - x_min)/2;
-    float y_avg_delta = (y_max - y_min)/2;
-    float z_avg_delta = (z_max - z_min)/2;
+    float x_avg_delta = (x_max_f - x_min_f)/2;
+    float y_avg_delta = (y_max_f - y_min_f)/2;
+    float z_avg_delta = (z_max_f - z_min_f)/2;
 
     float avg_delta = (x_avg_delta + y_avg_delta + z_avg_delta) / 3;
 
@@ -371,9 +378,9 @@ bool QMC5883LCompass::read(){
 	
 **/
 void QMC5883LCompass::_applyCalibration(){
-    _vCalibrated[0] = (_vRaw[0] - _offset[0]) * _scale[0];
-    _vCalibrated[1] = (_vRaw[1] - _offset[1]) * _scale[1];
-    _vCalibrated[2] = (_vRaw[2] - _offset[2]) * _scale[2];
+    _vCalibrated[0] = (int)round((_vRaw[0] - _offset[0]) * _scale[0]);
+    _vCalibrated[1] = (int)round((_vRaw[1] - _offset[1]) * _scale[1]);
+    _vCalibrated[2] = (int)round((_vRaw[2] - _offset[2]) * _scale[2]);
 }
 
 
@@ -419,9 +426,9 @@ void QMC5883LCompass::_smoothing(){
                 min = ( _vHistory[k][i] < _vHistory[min][i] ) ? k : min;
             }
 
-            _vSmooth[i] = ( _vTotals[i] - (_vHistory[max][i] + _vHistory[min][i]) ) / (_smoothSteps - 2);
+            _vSmooth[i] = (int)round(((float)_vTotals[i] - ((float)_vHistory[max][i] + (float)_vHistory[min][i]) ) / ((float)_smoothSteps - 2));
         } else {
-            _vSmooth[i] = _vTotals[i]  / _smoothSteps;
+            _vSmooth[i] = (int)round((float)_vTotals[i]  / (float)_smoothSteps);
         }
     }
 
