@@ -9,11 +9,13 @@ class QMC5883LCompass{
 public:
     QMC5883LCompass();
     void init();
+    void init(TwoWire *twi);
     void setADDR(byte b);
+    void setAutocalibrate(bool autoCalibrateEnabled);
     void setMode(byte mode, byte odr, byte rng, byte osr);
     void setMagneticDeclination(int degrees, uint8_t minutes);
     void setSmoothing(byte steps, bool adv);
-    void calibrate(unsigned int seconds, void (*callback)(float));
+    void calibrate(unsigned int seconds, void (*callback)(float, bool));
     void setCalibration(int x_min, int x_max, int y_min, int y_max, int z_min, int z_max);
     void setCalibrationOffsets(float x_offset, float y_offset, float z_offset);
     void setCalibrationScales(float x_scale, float y_scale, float z_scale);
@@ -21,7 +23,7 @@ public:
     float getCalibrationScale(uint8_t index);
     void clearCalibration();
     void setReset();
-    void read();
+    bool read();
     int getX();
     int getY();
     int getZ();
@@ -30,6 +32,8 @@ public:
     void getDirection(char* myArray, int azimuth);
 
 private:
+    bool _applyCalibrationIfNecessary(int x, int y, int z);
+    bool _autoCalibrate = false;
     void _writeReg(byte reg,byte val);
     int _get(int index);
     float _magneticDeclinationDegrees = 0;
@@ -65,9 +69,14 @@ private:
             {' ', 'N', 'W'},
             {'N', 'N', 'W'},
     };
+    TwoWire *wire;
 
-
-
+    long minX = 65000;
+    long minY = 65000;
+    long minZ = 65000;
+    long maxX = -65000;
+    long maxY = -65000;
+    long maxZ = -65000;
 };
 
 #endif

@@ -59,6 +59,19 @@ OVER SAMPLE RATIO (OSR)
 QMC5883LCompass::QMC5883LCompass() {
 }
 
+void QMC5883LCompass::setAutocalibrate(bool autoCalibrateEnabled) {
+    _autoCalibrate = autoCalibrateEnabled;
+}
+
+/**
+	INIT
+	Initialize Chip - This needs to be called in the sketch setup() function.
+
+	@since v0.1;
+**/
+void QMC5883LCompass::init() {
+    init(nullptr);
+}
 
 /**
 	INIT
@@ -66,8 +79,9 @@ QMC5883LCompass::QMC5883LCompass() {
 	
 	@since v0.1;
 **/
-void QMC5883LCompass::init(){
-    Wire.begin();
+void QMC5883LCompass::init(TwoWire *twi){
+    wire = twi ? twi : &Wire;
+    wire->begin();
     _writeReg(0x0B,0x01);
     setMode(0x01,0x0C,0x10,0X00);
 }
@@ -95,10 +109,10 @@ void QMC5883LCompass::setADDR(byte b){
 **/
 // Write register values to chip
 void QMC5883LCompass::_writeReg(byte r, byte v){
-    Wire.beginTransmission(_ADDR);
-    Wire.write(r);
-    Wire.write(v);
-    Wire.endTransmission();
+    wire->beginTransmission(_ADDR);
+    wire->write(r);
+    wire->write(v);
+    wire->endTransmission();
 }
 
 
@@ -147,12 +161,15 @@ void QMC5883LCompass::setSmoothing(byte steps, bool adv){
     _smoothAdvanced = (adv == true) ? true : false;
 }
 
-void QMC5883LCompass::calibrate(unsigned int seconds, void (*callback)(float)) {
+void QMC5883LCompass::calibrate(unsigned int seconds, void (*callback)(float, bool)) {
     clearCalibration();
-    long calibrationData[3][2] = {{65000, -65000}, {65000, -65000}, {65000, -65000}};
-    long	x = calibrationData[0][0] = calibrationData[0][1] = getX();
-    long	y = calibrationData[1][0] = calibrationData[1][1] = getY();
-    long	z = calibrationData[2][0] = calibrationData[2][1] = getZ();
+//    long calibrationData[3][2] = {{65000, -65000}, {65000, -65000}, {65000, -65000}};
+//    long	x = calibrationData[0][0] = calibrationData[0][1] = getX();
+//    long	y = calibrationData[1][0] = calibrationData[1][1] = getY();
+//    long	z = calibrationData[2][0] = calibrationData[2][1] = getZ();
+    minX = maxX = getX();
+    minY = maxY = getY();
+    minZ = maxZ = getZ();
 
     if(seconds == 0) seconds = 10000;
 
@@ -160,52 +177,92 @@ void QMC5883LCompass::calibrate(unsigned int seconds, void (*callback)(float)) {
     unsigned long startTime = millis();
     unsigned long elapsedMillis;
 
+    callback(0, true);
     do {
+        bool foundNewValue = false;
         unsigned long currentTime = millis();
         elapsedMillis = currentTime - startTime;
         if(elapsedMillis > totalMillis) elapsedMillis = totalMillis;
         float progress = (elapsedMillis * 1.0) / totalMillis;
         if(progress < 0) progress = 0;
         else if(progress > 1) progress = 1;
-        callback(progress);
 
         read();
 
-        x = getX();
-        y = getY();
-        z = getZ();
+        int x = getX();
+        int y = getY();
+        int z = getZ();
 
-        if(x < calibrationData[0][0]) {
-            calibrationData[0][0] = x;
+        if(x < minX) {
+            minX = x;
+            foundNewValue = true;
         }
-        if(x > calibrationData[0][1]) {
-            calibrationData[0][1] = x;
-        }
-
-        if(y < calibrationData[1][0]) {
-            calibrationData[1][0] = y;
-        }
-        if(y > calibrationData[1][1]) {
-            calibrationData[1][1] = y;
+        if(x > maxX) {
+            maxX = x;
+            foundNewValue = true;
         }
 
-        if(z < calibrationData[2][0]) {
-            calibrationData[2][0] = z;
+        if(y < minY) {
+            minY = y;
+            foundNewValue = true;
         }
-        if(z > calibrationData[2][1]) {
-            calibrationData[2][1] = z;
+        if(y > maxY) {
+            maxY = y;
+            foundNewValue = true;
         }
 
+        if(z < minZ) {
+            minZ = z;
+            foundNewValue = true;
+        }
+        if(z > maxZ) {
+            maxZ = z;
+            foundNewValue = true;
+        }
+
+        callback(progress, foundNewValue);
     } while(elapsedMillis < totalMillis);
 
-    setCalibration(
-            calibrationData[0][0],
-            calibrationData[0][1],
-            calibrationData[1][0],
-            calibrationData[1][1],
-            calibrationData[2][0],
-            calibrationData[2][1]
-    );
+    setCalibration(minX,maxX, minY, maxY, minZ, maxZ);
+
+    callback(1, false);
+}
+
+bool QMC5883LCompass::_applyCalibrationIfNecessary(int x, int y, int z) {
+    bool foundNewValue = false;
+
+    if(x < minX) {
+        minX = x;
+        foundNewValue = true;
+    }
+    if(x > maxX) {
+        maxX = x;
+        foundNewValue = true;
+    }
+
+    if(y < minY) {
+        minY = y;
+        foundNewValue = true;
+    }
+    if(y > maxY) {
+        maxY = y;
+        foundNewValue = true;
+    }
+
+    if(z < minZ) {
+        minZ = z;
+        foundNewValue = true;
+    }
+    if(z > maxZ) {
+        maxZ = z;
+        foundNewValue = true;
+    }
+
+    if(foundNewValue) {
+        setCalibration(minX,maxX, minY, maxY, minZ, maxZ);
+    }
+
+    return foundNewValue;
 }
 
 /**
@@ -269,15 +326,24 @@ void QMC5883LCompass::clearCalibration(){
 	
 	@since v0.1;
 **/
-void QMC5883LCompass::read(){
-    Wire.beginTransmission(_ADDR);
-    Wire.write(0x00);
-    int err = Wire.endTransmission();
+bool QMC5883LCompass::read(){
+    bool foundNewValue = false;
+    wire->beginTransmission(_ADDR);
+    wire->write(0x00);
+    int err = wire->endTransmission();
     if (!err) {
-        Wire.requestFrom(_ADDR, (byte)6);
-        _vRaw[0] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
-        _vRaw[1] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
-        _vRaw[2] = (int)(int16_t)(Wire.read() | Wire.read() << 8);
+        wire->requestFrom(_ADDR, (byte)6);
+        int x = (int)(int16_t)(wire->read() | wire->read() << 8);
+        int y = (int)(int16_t)(wire->read() | wire->read() << 8);
+        int z = (int)(int16_t)(wire->read() | wire->read() << 8);
+
+        if(_autoCalibrate) {
+            foundNewValue = _applyCalibrationIfNecessary(x, y, z);
+        }
+
+        _vRaw[0] = x;
+        _vRaw[1] = y;
+        _vRaw[2] = z;
 
         _applyCalibration();
 
@@ -285,9 +351,10 @@ void QMC5883LCompass::read(){
             _smoothing();
         }
 
-        //byte overflow = Wire.read() & 0x02;
+        //byte overflow = wire->read() & 0x02;
         //return overflow << 2;
     }
+    return foundNewValue;
 }
 
 /**
